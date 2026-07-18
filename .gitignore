@@ -1,0 +1,23 @@
+# Configuration réelle (peut contenir des secrets) — seul config.example.yml est versionné
+config.yml
+
+# Dépendances
+node_modules/
+
+# Front compilé
+web/dist/
+
+# Base SQLite runtime (fichiers WAL/SHM inclus)
+data/*.db
+data/*.db-*
+
+# Dataset d'exercices (~163 Mo, non versionné : poids + licence média)
+data/exercises.json
+data/seed-report.txt
+images/*
+!images/.gitkeep
+videos/*
+!videos/.gitkeep
+
+docs/*
+CLAUDE.md

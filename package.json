@@ -1,0 +1,16 @@
+{
+  "name": "sthenos",
+  "version": "0.1.0",
+  "description": "PWA personnelle de suivi de musculation et de santé",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server/index.js",
+    "seed": "node server/services/seed.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.11.1",
+    "express": "^4.19.0",
+    "js-yaml": "^4.1.0"
+  }
+}

@@ -1,0 +1,45 @@
+# Gabarit de configuration Sthenos.
+# Copier en config.yml et renseigner les valeurs réelles. config.yml n'est PAS versionné
+# (il contient des secrets). Toutes les clés ci-dessous sont obligatoires sauf mention contraire :
+# le serveur valide leur présence et leur type au démarrage et échoue explicitement sinon.
+# Frontière config / préférences utilisateur : voir docs/config.md.
+
+server:
+  port: 3000                          # port d'écoute d'Express
+  host: "127.0.0.1"                   # interface d'écoute (nginx proxifie devant, cf docs/infra.md)
+  base_url: "https://sthenos.example.com"  # URL publique (liens absolus, configuration PWA)
+
+paths:
+  db_file: "./data/sthenos.db"        # chemin du fichier SQLite
+  media_images: "./images"            # dossier des vignettes JPG
+  media_videos: "./videos"            # dossier des animations GIF
+  web_dist: "./web/dist"              # dossier du front compilé servi en statique
+  exercises_json: "./data/exercises.json"  # fichier JSON du dataset d'exercices (lu par le seed)
+
+auth:
+  session_secret: "CHANGER_MOI_secret_aleatoire_long"  # secret de signature des sessions (SENSIBLE)
+  cookie_secure: true                 # cookie transmis uniquement en HTTPS (true en production)
+  cookie_same_site: "lax"             # politique SameSite du cookie de session
+
+health:
+  ingest_path: "/api/health/ingest"   # chemin de l'endpoint d'ingestion Apple Santé
+  analysis_start: "08:00"             # début de la fenêtre horaire de l'analyse matinale
+  analysis_end: "10:00"               # fin de la fenêtre horaire de l'analyse matinale
+  timezone: "Europe/Paris"            # fuseau de référence pour le cron et le découpage des journées
+
+progression:                          # seuils globaux de l'algorithme (non personnalisables par utilisateur)
+  easy_delta: 2                       # écart de RIR au-dessus de la cible = charge trop légère
+  deload_pct: 0.10                    # proportion d'allègement au deload (0,10 = -10 %)
+  stall_sessions: 3                   # nombre de séances identiques déclenchant la stagnation
+  load_rounding_step: 2.5             # pas d'arrondi de charge (à défaut, dérivé de l'incrément)
+
+user_defaults:                        # amorçage des préférences à la création d'un compte (copiées en base)
+  default_rir: 2                      # RIR cible par défaut
+  default_rep_min: 8                  # bas de fourchette de reps par défaut
+  default_rep_max: 12                 # haut de fourchette de reps par défaut
+  default_increment: 2.5              # incrément de charge par défaut (kg)
+  theme: "dark"                       # thème initial
+  weight_unit: "kg"                   # unité de charge initiale
+
+logging:                              # optionnel
+  level: "info"                       # niveau de journalisation du serveur
