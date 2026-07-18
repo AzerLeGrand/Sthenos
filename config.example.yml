@@ -42,5 +42,9 @@ user_defaults:                        # amorçage des préférences à la créat
   theme: "dark"                       # thème initial
   weight_unit: "kg"                   # unité de charge initiale
 
+pagination:                           # taille des pages des endpoints de liste (ex. catalogue d'exercices)
+  default_limit: 30                   # taille de page par défaut si le client ne précise pas
+  max_limit: 100                      # plafond : une demande au-delà est ramenée à cette valeur
+
 logging:                              # optionnel
   level: "info"                       # niveau de journalisation du serveur

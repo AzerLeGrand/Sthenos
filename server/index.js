@@ -9,8 +9,10 @@ const { loadConfig } = require("./config");
 const { openDatabase } = require("./db");
 const { runMigrations } = require("./db/migrate");
 const { createSessionStore } = require("./db/session-store");
+const { makeRequireAuth } = require("./middleware/requireAuth");
 const { statusRouter } = require("./routes/status");
 const { authRouter } = require("./routes/auth");
+const { exercisesRouter } = require("./routes/exercises");
 
 function main() {
   // 1. Configuration — échoue explicitement si une clé manque ou est invalide.
@@ -47,6 +49,8 @@ function main() {
   // Montage des routes (couche routes séparée ; la base est injectée).
   app.use("/api", statusRouter(db));
   app.use("/api/auth", authRouter(db));
+  // Catalogue : protégé par requireAuth (pas d'accès anonyme), appliqué à tout le sous-arbre.
+  app.use("/api/exercises", makeRequireAuth(db), exercisesRouter(db, config.pagination));
 
   // Filet de sécurité : toute erreur non gérée dans une route renvoie un 500 propre.
   app.use((err, req, res, next) => {

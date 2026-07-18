@@ -44,6 +44,7 @@ const SCHEMA = {
     theme: "string",
     weight_unit: "string",
   },
+  pagination: { default_limit: "number", max_limit: "number" },
   "logging?": { level: "string" }, // section optionnelle
 };
 
