@@ -28,6 +28,11 @@ function main() {
   const app = express();
   app.use(express.json()); // parsing des corps JSON pour l'API
 
+  // nginx termine le TLS et parle en HTTP simple à Node en local (cf docs/infra.md).
+  // Sans ceci, req.secure reste false et express-session refuse de poser le cookie
+  // quand auth.cookie_secure est à true.
+  app.set("trust proxy", 1);
+
   // Sessions : cookie httpOnly signé, options depuis config.yml (rien en dur).
   // Le store persiste en base (survit au redémarrage, cf docs/infra.md §9).
   app.use(
