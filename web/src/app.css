@@ -1,0 +1,25 @@
+/* Feuille de style globale. Tailwind v4 importé en une ligne (pas de tailwind.config.js).
+   Thème sombre uniquement pour l'instant (docs/frontend.md : sombre par défaut, thème clair
+   hors périmètre phase 2). Les couleurs sont posées directement, sans variantes `dark:`. */
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+}
+
+/* Palette sombre de base. Volontairement minimale : la direction artistique fine est hors
+   périmètre (docs/frontend.md §9), on cadre ici structure et lisibilité mobile. */
+@layer base {
+  body {
+    @apply bg-neutral-950 text-neutral-100 antialiased;
+    /* Zones sûres iOS (encoche, barre d'accueil) en mode PWA plein écran. */
+    padding-top: env(safe-area-inset-top);
+  }
+
+  /* Cibles tactiles confortables au pouce (mobile-first). */
+  button,
+  input,
+  select {
+    @apply outline-none;
+  }
+}

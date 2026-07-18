@@ -2,6 +2,8 @@
 // Séquence de démarrage : charger la config → ouvrir la base → appliquer les migrations
 // → monter Express → écouter. Toute erreur à ces étapes arrête le process explicitement.
 
+const path = require("path");
+
 const express = require("express");
 const session = require("express-session");
 
@@ -57,10 +59,37 @@ function main() {
   // Catalogue : protégé par requireAuth (pas d'accès anonyme), appliqué à tout le sous-arbre.
   app.use("/api/exercises", makeRequireAuth(db), exercisesRouter(db, config.pagination));
 
+  // 404 JSON pour toute route /api/* non résolue (n'importe quelle méthode). Garantit que le
+  // client reçoit du JSON, jamais le HTML du fallback SPA ni le 404 HTML par défaut d'Express
+  // (sinon ApiError côté front parserait du HTML). À placer après les routeurs API, avant le statique.
+  app.use("/api", (req, res) => {
+    res.status(404).json({ error: "route API inconnue" });
+  });
+
+  // Médias des exercices (vignettes JPG, animations GIF). En production nginx les sert
+  // directement (cf docs/infra.md §3) ; Express conserve la capacité, utile en dev et en secours.
+  // Chemins lus depuis config.yml, jamais en dur. Les chemins internes du dataset sont préfixés
+  // « images/ » et « videos/ », d'où le montage sur ces préfixes.
+  app.use("/images", express.static(config.paths.media_images));
+  app.use("/videos", express.static(config.paths.media_videos));
+
+  // Front compilé (SPA Svelte). Sert les fichiers statiques du build Vite.
+  const webDist = path.resolve(config.paths.web_dist);
+  app.use(express.static(webDist));
+
   // Filet de sécurité : toute erreur non gérée dans une route renvoie un 500 propre.
   app.use((err, req, res, next) => {
     console.error("Erreur non gérée :", err);
     res.status(500).json({ status: "error", message: "erreur interne" });
+  });
+
+  // Fallback SPA : toute route non-fichier renvoie index.html (routing côté client). Les routes
+  // /api/* ne parviennent jamais ici : elles sont toutes absorbées par le 404 JSON monté plus haut.
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(webDist, "index.html"), (err) => {
+      // dist absent (front pas encore buildé) : message clair plutôt qu'une stack.
+      if (err) res.status(404).send("Front non buildé : lancer `npm run build` dans web/.");
+    });
   });
 
   // 5. Écoute.
