@@ -18,7 +18,12 @@ const SCHEMA = {
     web_dist: "string",
     exercises_json: "string",
   },
-  auth: { session_secret: "string", cookie_secure: "boolean", cookie_same_site: "string" },
+  auth: {
+    session_secret: "string",
+    cookie_secure: "boolean",
+    cookie_same_site: "string",
+    session_ttl_days: "number",
+  },
   health: {
     ingest_path: "string",
     analysis_start: "string",

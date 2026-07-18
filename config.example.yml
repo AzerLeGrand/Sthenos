@@ -20,6 +20,7 @@ auth:
   session_secret: "CHANGER_MOI_secret_aleatoire_long"  # secret de signature des sessions (SENSIBLE)
   cookie_secure: true                 # cookie transmis uniquement en HTTPS (true en production)
   cookie_same_site: "lax"             # politique SameSite du cookie de session
+  session_ttl_days: 30                # durée de validité de la session (jours)
 
 health:
   ingest_path: "/api/health/ingest"   # chemin de l'endpoint d'ingestion Apple Santé

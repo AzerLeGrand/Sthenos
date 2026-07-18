@@ -3,11 +3,14 @@
 // → monter Express → écouter. Toute erreur à ces étapes arrête le process explicitement.
 
 const express = require("express");
+const session = require("express-session");
 
 const { loadConfig } = require("./config");
 const { openDatabase } = require("./db");
 const { runMigrations } = require("./db/migrate");
+const { createSessionStore } = require("./db/session-store");
 const { statusRouter } = require("./routes/status");
+const { authRouter } = require("./routes/auth");
 
 function main() {
   // 1. Configuration — échoue explicitement si une clé manque ou est invalide.
@@ -23,8 +26,27 @@ function main() {
   const app = express();
   app.use(express.json()); // parsing des corps JSON pour l'API
 
+  // Sessions : cookie httpOnly signé, options depuis config.yml (rien en dur).
+  // Le store persiste en base (survit au redémarrage, cf docs/infra.md §9).
+  app.use(
+    session({
+      secret: config.auth.session_secret,
+      store: createSessionStore(db),
+      resave: false, // le store gère l'écriture ; pas de réécriture systématique
+      saveUninitialized: false, // pas de session pour les visiteurs non connectés
+      rolling: true, // prolonge la fenêtre d'expiration à chaque requête active
+      cookie: {
+        httpOnly: true, // inaccessible au JavaScript (protège du vol par script)
+        secure: config.auth.cookie_secure,
+        sameSite: config.auth.cookie_same_site,
+        maxAge: config.auth.session_ttl_days * 24 * 60 * 60 * 1000,
+      },
+    })
+  );
+
   // Montage des routes (couche routes séparée ; la base est injectée).
   app.use("/api", statusRouter(db));
+  app.use("/api/auth", authRouter(db));
 
   // Filet de sécurité : toute erreur non gérée dans une route renvoie un 500 propre.
   app.use((err, req, res, next) => {
