@@ -59,3 +59,19 @@ export function categoryLabel(value) {
 export function equipmentLabel(value) {
   return EQUIPMENT[value] || value;
 }
+
+// Motifs de suggestion DDP (docs/progression-algo.md §3/§10) → libellés courts FR affichés en
+// séance. Le front n'implémente aucune règle : il ne fait qu'afficher le `reason` renvoyé.
+const REASONS = {
+  baseline: "Point de départ",
+  deload: "Allège",
+  increase_load_easy: "Monte la charge",
+  increase_load: "Monte la charge",
+  hold: "Maintiens",
+  increase_reps: "Gagne une répétition",
+};
+
+// Traduit un code de motif ; repli sur le code brut si inconnu (robustesse aux évolutions backend).
+export function reasonLabel(code) {
+  return REASONS[code] || code;
+}

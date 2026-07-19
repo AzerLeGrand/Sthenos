@@ -94,4 +94,18 @@ export const api = {
     request(`/api/routines/${id}/exercises/${reId}`, { method: "DELETE" }),
   reorderRoutineExercises: (id, order) =>
     request(`/api/routines/${id}/exercises/reorder`, { method: "POST", body: { order } }),
+
+  // Suggestion DDP d'un exercice de routine (une entrée par set_number). Consommée en mode séance.
+  getSuggestion: (routineId, reId) =>
+    request(`/api/routines/${routineId}/exercises/${reId}/suggestion`),
+
+  // Séances et séries loggées. Les identifiants (session, série) sont générés côté client (UUID)
+  // et l'écriture est idempotente : rejouer un POST ne duplique rien (data-model.md §1). Ces id
+  // fournis par l'appelant sont le point d'insertion d'une future file hors-ligne, sans réécriture.
+  createSession: (session) => request("/api/sessions", { method: "POST", body: session }),
+  patchSession: (id, ended_at) =>
+    request("/api/sessions/" + id, { method: "PATCH", body: { ended_at } }),
+  getSession: (id) => request("/api/sessions/" + id),
+  addSet: (sessionId, set) =>
+    request(`/api/sessions/${sessionId}/sets`, { method: "POST", body: set }),
 };

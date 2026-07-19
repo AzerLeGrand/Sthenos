@@ -12,6 +12,7 @@
   export let routineId;
   export let onBack; // () => void — retour à la liste
   export let onDeleted; // () => void — la routine a été supprimée, retour à la liste
+  export let onStartSession; // (sessionId) => void — séance créée, bascule vers SessionRunner
 
   let routine = null; // { id, name, created_at, exercises: [...] }
   let status = "loading"; // loading | error | ready
@@ -33,6 +34,9 @@
   let renameError = null;
 
   let confirming = null; // null | { type:'routine' } | { type:'exercise', reId, name }
+
+  let starting = false; // création de séance en cours
+  let startError = null;
 
   const frNum = (n) => String(n).replace(".", ","); // virgule décimale (convention FR)
 
@@ -170,6 +174,21 @@
     }
   }
 
+  // Démarre une séance : crée la session (id client, idempotent) liée à la routine, puis bascule
+  // vers SessionRunner. On ne remet pas `starting` à false en cas de succès : on quitte l'écran.
+  async function startSession() {
+    starting = true;
+    startError = null;
+    try {
+      const id = crypto.randomUUID();
+      await api.createSession({ id, routine_id: routineId, started_at: new Date().toISOString() });
+      onStartSession(id);
+    } catch (err) {
+      startError = err instanceof ApiError ? err.message : "Démarrage impossible.";
+      starting = false;
+    }
+  }
+
   onMount(load);
 </script>
 
@@ -211,6 +230,18 @@
 
     {#if actionError}
       <p class="mb-3 rounded-lg border border-red-900/50 bg-red-950/40 px-3 py-2 text-sm text-red-300">{actionError}</p>
+    {/if}
+
+    <!-- Démarrer une séance à partir de cette routine (désactivé si aucun exercice) -->
+    <button
+      class="mb-4 w-full rounded-lg bg-emerald-700 px-4 py-3 font-semibold text-white active:bg-emerald-800 disabled:opacity-40"
+      on:click={startSession}
+      disabled={busy || starting || routine.exercises.length === 0}
+    >
+      {starting ? "Démarrage…" : "Démarrer une séance"}
+    </button>
+    {#if startError}
+      <p class="mb-3 rounded-lg border border-red-900/50 bg-red-950/40 px-3 py-2 text-sm text-red-300">{startError}</p>
     {/if}
 
     <!-- Liste ordonnée des exercices -->
