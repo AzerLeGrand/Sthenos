@@ -148,7 +148,7 @@ function getRoutineExerciseInRoutine(db, reId, routineId) {
   return (
     db
       .prepare(
-        `SELECT id, n_series, rep_min, rep_max, rir_cible, increment, goal, rest_seconds
+        `SELECT id, exercise_id, n_series, rep_min, rep_max, rir_cible, increment, goal, rest_seconds
          FROM routine_exercises WHERE id = ? AND routine_id = ?`
       )
       .get(reId, routineId) || null

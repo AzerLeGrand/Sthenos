@@ -16,6 +16,7 @@ const { statusRouter } = require("./routes/status");
 const { authRouter } = require("./routes/auth");
 const { exercisesRouter } = require("./routes/exercises");
 const { routinesRouter } = require("./routes/routines");
+const { sessionsRouter } = require("./routes/sessions");
 
 function main() {
   // 1. Configuration — échoue explicitement si une clé manque ou est invalide.
@@ -60,7 +61,10 @@ function main() {
   // Catalogue : protégé par requireAuth (pas d'accès anonyme), appliqué à tout le sous-arbre.
   app.use("/api/exercises", makeRequireAuth(db), exercisesRouter(db, config.pagination));
   // Routines : protégées par requireAuth ; chaque route filtre par req.user.id (jamais le client).
-  app.use("/api/routines", makeRequireAuth(db), routinesRouter(db));
+  // config.progression (seuils globaux) injecté pour la route de suggestion DDP.
+  app.use("/api/routines", makeRequireAuth(db), routinesRouter(db, config.progression));
+  // Séances et séries loggées : protégées par requireAuth, propriété par req.user.id.
+  app.use("/api/sessions", makeRequireAuth(db), sessionsRouter(db));
 
   // 404 JSON pour toute route /api/* non résolue (n'importe quelle méthode). Garantit que le
   // client reçoit du JSON, jamais le HTML du fallback SPA ni le 404 HTML par défaut d'Express

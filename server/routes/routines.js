@@ -25,6 +25,7 @@ const {
   reorderRoutineExercises,
   validateParams,
 } = require("../services/routines");
+const { getExerciseHistory, suggestExercise } = require("../services/progression");
 
 // Parse un id entier de path param. Retourne le nombre, ou null si absent/non entier
 // (l'appelant répond alors 404 : un id malformé désigne une ressource qui n'existe pas).
@@ -40,7 +41,8 @@ function cleanName(raw) {
   return name.length ? name : null;
 }
 
-function routinesRouter(db) {
+// `thresholds` = config.progression (seuils globaux de l'algorithme), injecté pour la route suggestion.
+function routinesRouter(db, thresholds) {
   const router = express.Router();
 
   // Enveloppe try/catch uniforme (mêmes messages/codes que routes/exercises.js) : évite de répéter
@@ -236,6 +238,29 @@ function routinesRouter(db) {
 
       reorderRoutineExercises(db, routine.id, order);
       res.json(getRoutineDetail(db, routine));
+    })
+  );
+
+  // GET /api/routines/:id/exercises/:reId/suggestion — suggestions DDP, une par set_number.
+  // Calcul délégué au service progression (pur), historique restreint aux séances clôturées de
+  // l'utilisateur courant. reason parmi baseline/deload/increase_load_easy/increase_load/hold/increase_reps.
+  router.get(
+    "/:id/exercises/:reId/suggestion",
+    wrap("suggestion", (req, res) => {
+      const routine = requireOwned(req, res);
+      if (!routine) return;
+      const reId = parseId(req.params.reId);
+      const re = reId === null ? null : getRoutineExerciseInRoutine(db, reId, routine.id);
+      if (!re) return res.status(404).json({ error: "exercice de routine introuvable" });
+
+      const sessions = getExerciseHistory(db, req.user.id, re.exercise_id);
+      const suggestions = suggestExercise(re, sessions, thresholds);
+      res.json({
+        routine_exercise_id: re.id,
+        exercise_id: re.exercise_id,
+        goal: re.goal,
+        suggestions,
+      });
     })
   );
 
