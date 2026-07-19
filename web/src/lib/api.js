@@ -77,4 +77,21 @@ export const api = {
   listExercises: (params) => request("/api/exercises" + queryString(params)),
   exercisesMeta: () => request("/api/exercises/meta"),
   exercise: (id) => request("/api/exercises/" + encodeURIComponent(id)),
+
+  // Routines (mode construction). Le serveur applique les défauts user_settings aux paramètres
+  // d'exercice omis à l'ajout ; les réponses complètes (détail, reorder, delete d'exercice) sont
+  // renvoyées par l'API pour repartir d'un état confirmé côté serveur.
+  listRoutines: () => request("/api/routines"),
+  createRoutine: (name) => request("/api/routines", { method: "POST", body: { name } }),
+  getRoutine: (id) => request("/api/routines/" + id),
+  updateRoutine: (id, name) => request("/api/routines/" + id, { method: "PATCH", body: { name } }),
+  deleteRoutine: (id) => request("/api/routines/" + id, { method: "DELETE" }),
+  addExerciseToRoutine: (id, params) =>
+    request(`/api/routines/${id}/exercises`, { method: "POST", body: params }),
+  updateRoutineExercise: (id, reId, params) =>
+    request(`/api/routines/${id}/exercises/${reId}`, { method: "PATCH", body: params }),
+  removeRoutineExercise: (id, reId) =>
+    request(`/api/routines/${id}/exercises/${reId}`, { method: "DELETE" }),
+  reorderRoutineExercises: (id, order) =>
+    request(`/api/routines/${id}/exercises/reorder`, { method: "POST", body: { order } }),
 };

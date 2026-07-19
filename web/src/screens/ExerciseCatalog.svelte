@@ -8,6 +8,20 @@
   import { detailExerciseId } from "../lib/stores.js";
   import AsyncState from "../components/AsyncState.svelte";
 
+  // Mode SÉLECTION : si `onSelect` est fourni, le clic sur une ligne renvoie l'exercice à l'appelant
+  // (ajout à une routine) au lieu d'ouvrir le détail. Un bouton « voir » reste disponible pour
+  // consulter le détail (GIF, instructions) sans déclencher la sélection — il ouvre ExerciseDetail
+  // via le store global (rendu par App au-dessus du catalogue ; son ✕ revient ici). onSelect null =
+  // comportement de consultation d'origine (toute la ligne ouvre le détail).
+  export let onSelect = null;
+  $: selecting = typeof onSelect === "function";
+
+  // Ouvre le détail en overlay (store global). Utilisé par le clic de ligne en consultation et par
+  // le bouton « voir » en mode sélection.
+  function openDetail(id) {
+    detailExerciseId.set(id);
+  }
+
   // Filtres (valeurs brutes EN côté API ; libellés FR à l'affichage).
   let q = "";
   let category = "";
@@ -124,10 +138,11 @@
 
   <ul class="flex flex-col gap-2">
     {#each result.items as ex (ex.id)}
-      <li>
+      <li class="flex items-center gap-2 rounded-lg border border-neutral-800 bg-neutral-900 p-2">
+        <!-- Contenu de la ligne : sélectionne (mode sélection) ou ouvre le détail (consultation) -->
         <button
-          class="flex w-full items-center gap-3 rounded-lg border border-neutral-800 bg-neutral-900 p-2 text-left active:bg-neutral-800"
-          on:click={() => detailExerciseId.set(ex.id)}
+          class="flex min-w-0 flex-1 items-center gap-3 text-left active:opacity-70"
+          on:click={() => (selecting ? onSelect(ex) : openDetail(ex.id))}
         >
           <img
             class="h-14 w-14 flex-none rounded-md bg-neutral-800 object-cover"
@@ -142,6 +157,16 @@
             </p>
           </div>
         </button>
+
+        <!-- En mode sélection : consulter le mouvement sans l'ajouter. Bouton frère (pas imbriqué). -->
+        {#if selecting}
+          <button
+            class="flex-none rounded-lg border border-neutral-700 px-3 py-2 text-xs font-medium text-neutral-300 active:bg-neutral-800"
+            on:click={() => openDetail(ex.id)}
+          >
+            Voir
+          </button>
+        {/if}
       </li>
     {/each}
   </ul>
