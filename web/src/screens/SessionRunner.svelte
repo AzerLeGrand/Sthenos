@@ -33,10 +33,15 @@
   $: exercises = routine ? routine.exercises : [];
   $: current = exercises[currentIndex] || null;
 
-  const countLogged = (ex) => (logged[ex.exercise_id] || []).length;
-  const isComplete = (ex) => countLogged(ex) >= ex.n_series;
-  const isStarted = (ex) => countLogged(ex) > 0;
-  $: allComplete = exercises.length > 0 && exercises.every(isComplete);
+  // Avancement dérivé du journal local. IMPORTANT : `logged` est référencé DIRECTEMENT dans ce `$:`
+  // pour que Svelte enregistre la dépendance. Via une fonction intermédiaire (isComplete(ex)…), le
+  // compilateur ne voit pas `logged` et la valeur reste figée à l'état initial — c'était la cause du
+  // faux « séance incomplète » et des pastilles ✓ périmées. `progress[i]` suit l'ordre de `exercises`.
+  $: progress = exercises.map((ex) => {
+    const n = (logged[ex.exercise_id] || []).length;
+    return { complete: n >= ex.n_series, started: n > 0 };
+  });
+  $: allComplete = exercises.length > 0 && progress.every((p) => p.complete);
 
   async function load() {
     status = "loading";
@@ -54,8 +59,11 @@
       logged = byEx;
       loggedByKey = byKey;
 
-      // Démarre sur le premier exercice non terminé (ou le premier si tout est fait).
-      const firstTodo = r.exercises.findIndex((ex) => !isComplete(ex));
+      // Démarre sur le premier exercice non terminé (ou le premier si tout est fait). Calculé depuis
+      // `byEx` fraîchement construit (pas via un helper, pour rester indépendant de la réactivité).
+      const firstTodo = r.exercises.findIndex(
+        (ex) => (byEx[ex.exercise_id] || []).length < ex.n_series
+      );
       currentIndex = firstTodo === -1 ? 0 : firstTodo;
 
       status = "ready";
@@ -131,11 +139,11 @@
         <button
           class="flex h-9 w-9 flex-none items-center justify-center rounded-full border text-sm font-medium
             {i === currentIndex ? 'border-neutral-100 text-neutral-100' : 'border-neutral-700 text-neutral-400'}
-            {isComplete(ex) ? 'bg-emerald-900/40' : isStarted(ex) ? 'bg-neutral-800' : ''}"
+            {progress[i].complete ? 'bg-emerald-900/40' : progress[i].started ? 'bg-neutral-800' : ''}"
           on:click={() => goto(i)}
           aria-label={`Exercice ${i + 1}`}
         >
-          {isComplete(ex) ? "✓" : i + 1}
+          {progress[i].complete ? "✓" : i + 1}
         </button>
       {/each}
     </div>
@@ -162,17 +170,23 @@
       </div>
     {/if}
 
-    <!-- Séries : une ligne par set_number. La clé inclut l'exercice → remontage à chaque changement. -->
-    <div class="flex flex-col gap-3">
-      {#each Array(current.n_series) as _, k (`${current.id}-${k + 1}`)}
-        <SetRow
-          setNumber={k + 1}
-          suggestion={suggestionFor(k + 1)}
-          initial={loggedByKey[`${current.exercise_id}:${k + 1}`] || null}
-          submit={(payload) => logSet(current.exercise_id, payload)}
-        />
-      {/each}
-    </div>
+    <!-- Séries : montées seulement une fois la suggestion RÉSOLUE (ready ou error). Sinon le
+         pré-remplissage one-shot de SetRow capterait `null` (suggestion encore en chargement) et
+         resterait vide malgré l'arrivée tardive de la donnée. Le bandeau ci-dessus couvre l'attente ;
+         en cas d'erreur, les lignes s'affichent quand même (saisie jamais bloquée). La clé inclut
+         l'exercice → remontage propre à chaque changement. -->
+    {#if currentSuggestion && currentSuggestion.status !== "loading"}
+      <div class="flex flex-col gap-3">
+        {#each Array(current.n_series) as _, k (`${current.id}-${k + 1}`)}
+          <SetRow
+            setNumber={k + 1}
+            suggestion={suggestionFor(k + 1)}
+            initial={loggedByKey[`${current.exercise_id}:${k + 1}`] || null}
+            submit={(payload) => logSet(current.exercise_id, payload)}
+          />
+        {/each}
+      </div>
+    {/if}
 
     <!-- Navigation entre exercices -->
     <div class="mt-4 flex gap-3">

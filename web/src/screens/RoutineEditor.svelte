@@ -38,8 +38,6 @@
   let starting = false; // création de séance en cours
   let startError = null;
 
-  const frNum = (n) => String(n).replace(".", ","); // virgule décimale (convention FR)
-
   async function load() {
     status = "loading";
     try {
