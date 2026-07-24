@@ -67,32 +67,34 @@
       currentIndex = firstTodo === -1 ? 0 : firstTodo;
 
       status = "ready";
-      ensureSuggestion();
+      // Le chargement de la suggestion est piloté par le bloc réactif ci-dessous, PAS ici :
+      // à ce point `current` (valeur `$:`) n'est pas encore recalculé par Svelte, il vaudrait null.
     } catch {
       status = "error";
     }
   }
 
-  // Charge la suggestion de l'exercice courant si absente du cache. Appelée à chaque navigation.
-  async function ensureSuggestion() {
-    if (!current) return;
-    const reId = current.id;
+  // Charge la suggestion d'un exercice (par reId) si absente du cache, ou en erreur (réessai).
+  // Fire-and-forget : le résultat alimente `suggestions`, observé réactivement.
+  function loadSuggestion(reId) {
     if (suggestions[reId] && suggestions[reId].status !== "error") return; // déjà en cache/en cours
     suggestions = { ...suggestions, [reId]: { status: "loading", data: null } };
-    try {
-      const data = await api.getSuggestion(routineId, reId);
-      suggestions = { ...suggestions, [reId]: { status: "ready", data } };
-    } catch {
-      suggestions = { ...suggestions, [reId]: { status: "error", data: null } };
-    }
+    api
+      .getSuggestion(routineId, reId)
+      .then((data) => (suggestions = { ...suggestions, [reId]: { status: "ready", data } }))
+      .catch(() => (suggestions = { ...suggestions, [reId]: { status: "error", data: null } }));
   }
+
+  // Déclenche le chargement dès que l'exercice courant change — APRÈS le recalcul réactif de `current`
+  // (impossible en impératif dans load()/goto() : `current` y serait encore périmé, la suggestion ne
+  // partirait jamais). `suggestions` n'est pas une dépendance de ce bloc → pas de boucle.
+  $: if (status === "ready" && current) loadSuggestion(current.id);
 
   $: currentSuggestion = current ? suggestions[current.id] : null;
 
   function goto(i) {
     if (i < 0 || i >= exercises.length) return;
-    currentIndex = i;
-    ensureSuggestion();
+    currentIndex = i; // le bloc réactif charge la suggestion du nouvel exercice
   }
 
   // POST d'une série (lié à l'exercice courant). Met à jour l'avancement local au succès ; relance
@@ -166,7 +168,7 @@
     {:else if currentSuggestion && currentSuggestion.status === "error"}
       <div class="mb-3 flex items-center justify-between rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm">
         <span class="text-neutral-400">Suggestions indisponibles.</span>
-        <button class="rounded-lg bg-neutral-800 px-3 py-1 text-neutral-100 active:bg-neutral-700" on:click={ensureSuggestion}>Réessayer</button>
+        <button class="rounded-lg bg-neutral-800 px-3 py-1 text-neutral-100 active:bg-neutral-700" on:click={() => loadSuggestion(current.id)}>Réessayer</button>
       </div>
     {/if}
 
