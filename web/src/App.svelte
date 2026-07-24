@@ -10,8 +10,10 @@
     detailExerciseId,
     checkSession,
   } from "./lib/stores.js";
+  import { initSync } from "./lib/api.js";
   import AsyncState from "./components/AsyncState.svelte";
   import TabBar from "./components/TabBar.svelte";
+  import OfflineBanner from "./components/OfflineBanner.svelte";
   import Login from "./screens/Login.svelte";
   import Training from "./screens/Training.svelte";
   import Progression from "./screens/Progression.svelte";
@@ -19,8 +21,12 @@
   import Settings from "./screens/Settings.svelte";
   import ExerciseDetail from "./screens/ExerciseDetail.svelte";
 
-  // Vérifie la session au chargement (évite de redemander la connexion inutilement).
-  onMount(checkSession);
+  // Au chargement : vérifie la session, et démarre la synchro hors-ligne (reprise de la file
+  // persistée + écoute de la connectivité). initSync ne casse pas l'app si IndexedDB est indispo.
+  onMount(() => {
+    checkSession();
+    initSync();
+  });
 </script>
 
 {#if $sessionStatus === "loading"}
@@ -48,6 +54,9 @@
       ⚙️
     </button>
   </header>
+
+  <!-- Bandeau discret d'état de synchro hors-ligne (visible seulement si hors-ligne / file non vide) -->
+  <OfflineBanner />
 
   <!-- Contenu de l'onglet actif. Marges pour l'en-tête fixe et la barre d'onglets fixe. -->
   <main class="min-h-screen px-4 pb-24 pt-20">

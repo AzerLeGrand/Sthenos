@@ -1,5 +1,10 @@
 // Couche d'appels API centralisée (docs/frontend.md §6) : un seul module encapsule fetch,
 // la gestion d'erreurs, le cookie de session et la base URL. Aucun fetch dispersé ailleurs.
+// C'est aussi le point d'insertion du hors-ligne (niveau 2, §4) : les écritures de séance basculent
+// vers une file locale en cas d'échec réseau, les lectures nécessaires au logging ont un cache.
+import { idbStore } from "./idb-store.js";
+import { createSync } from "./sync.js";
+import { offlineState } from "./offline-state.js";
 
 // Base URL configurable (rien en dur). Vide = même origine : en dev le proxy Vite renvoie
 // vers Express, en prod nginx/Express servent le tout. Surchargeable via VITE_API_BASE.
@@ -66,6 +71,42 @@ async function request(path, { method = "GET", body, allow401 = false } = {}) {
   return data;
 }
 
+// Rejoue une entrée de file vers le réseau (envoi direct ET vidage de file passent par ici : source
+// unique du mapping type→endpoint). Le payload porte l'id ressource CLIENT, rejoué tel quel.
+function networkSend(entry) {
+  const p = entry.payload;
+  switch (entry.type) {
+    case "session:create":
+      return request("/api/sessions", { method: "POST", body: p.session });
+    case "session:patch":
+      return request("/api/sessions/" + p.id, { method: "PATCH", body: { ended_at: p.ended_at } });
+    case "set:add":
+      return request(`/api/sessions/${p.sessionId}/sets`, { method: "POST", body: p.set });
+    default:
+      // Type inconnu (ne devrait pas arriver) : status 4xx → dead-letter, pas de boucle.
+      return Promise.reject(new ApiError(400, "type de file inconnu : " + entry.type));
+  }
+}
+
+// Instance de synchro (file + état réactif). Aucun effet de bord à l'import : les écouteurs et la
+// reprise de la file persistée démarrent à initSync(), appelé une fois par App au montage.
+const sync = createSync({ store: idbStore, send: networkSend, offlineState });
+
+// À appeler une fois au démarrage de l'app connectée : reprend la file persistée, écoute la
+// connectivité, lance un premier vidage si nécessaire. Ne casse pas l'app si IndexedDB est indispo.
+export async function initSync() {
+  try {
+    await sync.init();
+  } catch (err) {
+    console.error("initSync : file hors-ligne indisponible :", err.message);
+    return; // le mode en ligne reste pleinement fonctionnel sans la file
+  }
+  if (typeof window !== "undefined") sync.startConnectivity(window);
+  if (sync.queue.size() > 0 && (typeof navigator === "undefined" || navigator.onLine)) {
+    sync.queue.flush().catch(() => {});
+  }
+}
+
 export const api = {
   // Auth. me() et login() tolèrent le 401 (respectivement « pas connecté » et « identifiants faux »).
   me: () => request("/api/auth/me", { allow401: true }),
@@ -83,7 +124,20 @@ export const api = {
   // renvoyées par l'API pour repartir d'un état confirmé côté serveur.
   listRoutines: () => request("/api/routines"),
   createRoutine: (name) => request("/api/routines", { method: "POST", body: { name } }),
-  getRoutine: (id) => request("/api/routines/" + id),
+  // Cache read-through : la routine reste consultable hors-ligne une fois chargée (§4, §7).
+  getRoutine: async (id) => {
+    try {
+      const data = await request("/api/routines/" + id);
+      idbStore.putCache("routine:" + id, data).catch(() => {}); // cache best-effort, n'échoue pas la lecture
+      return data;
+    } catch (err) {
+      if (err.status === 0) {
+        const cached = await idbStore.getCache("routine:" + id);
+        if (cached) return cached;
+      }
+      throw err;
+    }
+  },
   updateRoutine: (id, name) => request("/api/routines/" + id, { method: "PATCH", body: { name } }),
   deleteRoutine: (id) => request("/api/routines/" + id, { method: "DELETE" }),
   addExerciseToRoutine: (id, params) =>
@@ -99,13 +153,33 @@ export const api = {
   getSuggestion: (routineId, reId) =>
     request(`/api/routines/${routineId}/exercises/${reId}/suggestion`),
 
-  // Séances et séries loggées. Les identifiants (session, série) sont générés côté client (UUID)
-  // et l'écriture est idempotente : rejouer un POST ne duplique rien (data-model.md §1). Ces id
-  // fournis par l'appelant sont le point d'insertion d'une future file hors-ligne, sans réécriture.
-  createSession: (session) => request("/api/sessions", { method: "POST", body: session }),
+  // Séances et séries loggées. Id générés côté client (UUID), écriture idempotente (data-model.md §1).
+  // Les écritures basculent vers la file locale en cas d'échec réseau (ou hors-ligne) et renvoient un
+  // résultat « en attente » : les composants n'ont pas à distinguer synchro immédiate ou différée.
+  createSession: (session) =>
+    sync.queuedWrite("session:create", { session }, { pending: true, id: session.id }),
   patchSession: (id, ended_at) =>
-    request("/api/sessions/" + id, { method: "PATCH", body: { ended_at } }),
-  getSession: (id) => request("/api/sessions/" + id),
+    sync.queuedWrite("session:patch", { id, ended_at }, { pending: true, id }),
   addSet: (sessionId, set) =>
-    request(`/api/sessions/${sessionId}/sets`, { method: "POST", body: set }),
+    sync.queuedWrite("set:add", { sessionId, set }, { pending: true, id: set.id }),
+
+  // Lecture d'une séance : hors-ligne, on synthétise les séries en attente dans la file (reprise
+  // après reload sans réseau, et pas de re-log — évite les doublons faute d'unicité serveur).
+  getSession: async (id) => {
+    try {
+      return await request("/api/sessions/" + id);
+    } catch (err) {
+      if (err.status === 0) {
+        return {
+          id,
+          routine_id: null,
+          started_at: null,
+          ended_at: null,
+          status: "in_progress",
+          sets: sync.queue.pendingSetsFor(id),
+        };
+      }
+      throw err;
+    }
+  },
 };
