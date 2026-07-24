@@ -22,6 +22,12 @@ export function createSync({
 
   const queue = createQueue({ store, send, now, onChange: setPending, config });
 
+  // Barrière de disponibilité : résolue quand la file persistée est chargée. Les lectures qui
+  // dépendent du contenu de la file (getSession hors-ligne) l'attendent, pour éviter la course
+  // « lecture avant chargement » au démarrage (séries en file non vues → risque de re-log).
+  let resolveReady;
+  const ready = new Promise((res) => (resolveReady = res));
+
   const isNetworkError = (err) => err && err.status === 0;
 
   // Bascule direct/file. `pendingResult` est renvoyé quand l'écriture est différée (les composants
@@ -45,10 +51,15 @@ export function createSync({
     return pendingResult;
   }
 
-  // Reprend la file persistée puis reflète l'état initial.
+  // Reprend la file persistée puis reflète l'état initial. Lève `ready` dans tous les cas (même si
+  // IndexedDB échoue : file vide) pour ne jamais bloquer une lecture qui l'attend.
   async function init() {
-    await queue.init();
-    setOnline(isOnline());
+    try {
+      await queue.init();
+      setOnline(isOnline());
+    } finally {
+      resolveReady();
+    }
   }
 
   // Écoute la connectivité et vide périodiquement. `win` injecté (window en prod).
@@ -67,5 +78,5 @@ export function createSync({
     };
   }
 
-  return { queue, queuedWrite, init, startConnectivity };
+  return { queue, queuedWrite, init, startConnectivity, ready };
 }

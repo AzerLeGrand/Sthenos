@@ -170,6 +170,7 @@ export const api = {
       return await request("/api/sessions/" + id);
     } catch (err) {
       if (err.status === 0) {
+        await sync.ready; // attend le chargement de la file avant d'en lire les séries (anti-course)
         return {
           id,
           routine_id: null,
