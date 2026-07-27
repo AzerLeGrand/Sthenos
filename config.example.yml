@@ -8,6 +8,9 @@ server:
   port: 3000                          # port d'écoute d'Express
   host: "127.0.0.1"                   # interface d'écoute (nginx proxifie devant, cf docs/infra.md)
   base_url: "https://sthenos.example.com"  # URL publique (liens absolus, configuration PWA)
+  json_limit: "5mb"                   # optionnel — taille max d'un corps JSON (défaut 5mb).
+                                      # Les 100 ko par défaut d'Express ne suffisent pas à un lot
+                                      # d'export Apple Santé (cf docs/health-integration.md §5).
 
 paths:
   db_file: "./data/sthenos.db"        # chemin du fichier SQLite

@@ -12,12 +12,16 @@ const { openDatabase } = require("./db");
 const { runMigrations } = require("./db/migrate");
 const { createSessionStore } = require("./db/session-store");
 const { makeRequireAuth } = require("./middleware/requireAuth");
+const { makeRequireHealthToken } = require("./middleware/requireHealthToken");
 const { statusRouter } = require("./routes/status");
 const { authRouter } = require("./routes/auth");
 const { exercisesRouter } = require("./routes/exercises");
 const { routinesRouter } = require("./routes/routines");
 const { sessionsRouter } = require("./routes/sessions");
 const { progressionRouter } = require("./routes/progression");
+const { bodyMetricsRouter } = require("./routes/body-metrics");
+const { settingsRouter } = require("./routes/settings");
+const { healthRouter } = require("./routes/health");
 
 function main() {
   // 1. Configuration — échoue explicitement si une clé manque ou est invalide.
@@ -31,7 +35,10 @@ function main() {
 
   // 4. Application Express.
   const app = express();
-  app.use(express.json()); // parsing des corps JSON pour l'API
+  // Parsing des corps JSON. La limite par défaut d'Express (100 ko) est trop basse pour un export
+  // Apple Santé : Health Auto Export envoie plusieurs semaines de points en un lot. Réglable par
+  // server.json_limit (clé optionnelle), pour ne pas avoir à toucher au code si un lot déborde.
+  app.use(express.json({ limit: config.server.json_limit || "5mb" }));
 
   // nginx termine le TLS et parle en HTTP simple à Node en local (cf docs/infra.md).
   // Sans ceci, req.secure reste false et express-session refuse de poser le cookie
@@ -68,6 +75,24 @@ function main() {
   app.use("/api/sessions", makeRequireAuth(db), sessionsRouter(db));
   // Progression : protégée par requireAuth, propriété par req.user.id ; seuils d'agrégation injectés.
   app.use("/api/progression", makeRequireAuth(db), progressionRouter(db, config.progression_analytics));
+  // Indicateurs corporels : protégés par requireAuth, propriété par req.user.id. La période par
+  // défaut est partagée avec Progression (mêmes sélecteurs 30/90/all, une seule valeur à régler).
+  app.use(
+    "/api/body-metrics",
+    makeRequireAuth(db),
+    bodyMetricsRouter(db, config.progression_analytics.default_period)
+  );
+  // Réglages (jeton d'ingestion) : protégés par requireAuth. L'URL d'ingestion affichée au front
+  // est construite serveur à partir de la config, jamais devinée par le client.
+  app.use(
+    "/api/settings",
+    makeRequireAuth(db),
+    settingsRouter(db, { baseUrl: config.server.base_url, ingestPath: config.health.ingest_path })
+  );
+  // Ingestion Apple Santé : SECOND mécanisme d'auth (jeton Bearer statique), jamais requireAuth.
+  // Le chemin vient de config.yml (health.ingest_path) ; il doit rester sous /api pour bénéficier
+  // du 404 JSON et du proxy nginx.
+  app.use(config.health.ingest_path, makeRequireHealthToken(db), healthRouter(db));
 
   // 404 JSON pour toute route /api/* non résolue (n'importe quelle méthode). Garantit que le
   // client reçoit du JSON, jamais le HTML du fallback SPA ni le 404 HTML par défaut d'Express

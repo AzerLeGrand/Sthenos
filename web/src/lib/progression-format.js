@@ -30,6 +30,17 @@ export function frNum(n, decimals = 1) {
   return String(Math.round(n * f) / f).replace(".", ",");
 }
 
+// Inverse de frNum : lit un nombre saisi à la française (virgule décimale acceptée).
+// Retourne { ok: false } plutôt que NaN, pour que l'appelant affiche un message plutôt qu'envoyer
+// une valeur invalide au serveur. Refuse le vide, le signe et tout caractère parasite.
+// ponytail: SetRow.svelte et RoutineExerciseForm.svelte portent chacun leur copie locale de cette
+// fonction (antérieure) ; à consolider ici si un quatrième appelant apparaît.
+export function parseFloatFr(str) {
+  const t = String(str ?? "").trim().replace(",", ".");
+  if (!/^\d+(\.\d+)?$/.test(t)) return { ok: false };
+  return { ok: true, value: parseFloat(t) };
+}
+
 // Libellé français d'une classification de tendance (régression ou fenêtre glissante).
 export function trendLabel(classification) {
   switch (classification) {

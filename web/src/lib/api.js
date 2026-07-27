@@ -169,6 +169,21 @@ export const api = {
   progression: (exerciseId, period) =>
     request("/api/progression/" + encodeURIComponent(exerciseId) + queryString({ period })),
 
+  // Indicateurs corporels (docs/frontend.md §3.3). Lecture seule côté calcul : le serveur agrège,
+  // dédoublonne les jours et filtre la période. La saisie manuelle n'est PAS mise en file
+  // hors-ligne : contrairement au logging en séance, elle se fait au calme, pas en salle.
+  bodyMetrics: () => request("/api/body-metrics"),
+  bodyMetricSeries: (metricType, period) =>
+    request("/api/body-metrics/" + encodeURIComponent(metricType) + queryString({ period })),
+  addBodyMetric: (metric_type, value, recorded_at) =>
+    request("/api/body-metrics", { method: "POST", body: { metric_type, value, recorded_at } }),
+
+  // Jeton d'ingestion Apple Santé (Réglages). Les deux routes renvoient la même forme
+  // { health_ingest_token, ingest_url } ; le jeton est null tant qu'aucun n'a été généré.
+  healthToken: () => request("/api/settings/health-token"),
+  regenerateHealthToken: () =>
+    request("/api/settings/health-token/regenerate", { method: "POST" }),
+
   // Lecture d'une séance : hors-ligne, on synthétise les séries en attente dans la file (reprise
   // après reload sans réseau, et pas de re-log — évite les doublons faute d'unicité serveur).
   getSession: async (id) => {

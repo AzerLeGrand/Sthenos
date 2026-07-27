@@ -10,7 +10,9 @@ const yaml = require("js-yaml");
 // Schéma attendu : chaque feuille est le type JS requis. "?" en suffixe = clé optionnelle.
 // Sert à la fois de documentation exécutable et de validateur.
 const SCHEMA = {
-  server: { port: "number", host: "string", base_url: "string" },
+  // json_limit : optionnel, défaut "5mb" côté index.js (taille max d'un corps JSON — un export
+  // Apple Santé dépasse largement les 100 ko par défaut d'Express).
+  server: { port: "number", host: "string", base_url: "string", "json_limit?": "string" },
   paths: {
     db_file: "string",
     media_images: "string",
