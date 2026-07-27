@@ -17,6 +17,7 @@ const { authRouter } = require("./routes/auth");
 const { exercisesRouter } = require("./routes/exercises");
 const { routinesRouter } = require("./routes/routines");
 const { sessionsRouter } = require("./routes/sessions");
+const { progressionRouter } = require("./routes/progression");
 
 function main() {
   // 1. Configuration — échoue explicitement si une clé manque ou est invalide.
@@ -65,6 +66,8 @@ function main() {
   app.use("/api/routines", makeRequireAuth(db), routinesRouter(db, config.progression));
   // Séances et séries loggées : protégées par requireAuth, propriété par req.user.id.
   app.use("/api/sessions", makeRequireAuth(db), sessionsRouter(db));
+  // Progression : protégée par requireAuth, propriété par req.user.id ; seuils d'agrégation injectés.
+  app.use("/api/progression", makeRequireAuth(db), progressionRouter(db, config.progression_analytics));
 
   // 404 JSON pour toute route /api/* non résolue (n'importe quelle méthode). Garantit que le
   // client reçoit du JSON, jamais le HTML du fallback SPA ni le 404 HTML par défaut d'Express

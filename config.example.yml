@@ -34,6 +34,12 @@ progression:                          # seuils globaux de l'algorithme (non pers
   stall_sessions: 3                   # nombre de séances identiques déclenchant la stagnation
   load_rounding_step: 2.5             # pas d'arrondi de charge (à défaut, dérivé de l'incrément)
 
+progression_analytics:                # onglet Progression : agrégation + tendance (non personnalisable)
+  rolling_window: 3                   # N séances de la fenêtre glissante (compare N dernières vs N précédentes)
+  trend_flat_slope: 0.1              # |pente| (kg/séance) en deçà de laquelle la tendance est "stable"
+  trend_flat_pct: 2.0               # |variation %| en deçà de laquelle la fenêtre glissante est "stable"
+  default_period: "90"              # période par défaut du sélecteur : "30" | "90" | "all"
+
 user_defaults:                        # amorçage des préférences à la création d'un compte (copiées en base)
   default_rir: 2                      # RIR cible par défaut
   default_rep_min: 8                  # bas de fourchette de reps par défaut

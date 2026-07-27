@@ -163,6 +163,12 @@ export const api = {
   addSet: (sessionId, set) =>
     sync.queuedWrite("set:add", { sessionId, set }, { pending: true, id: set.id }),
 
+  // Progression (docs/frontend.md §3.2). Tout le calcul est côté serveur ; le front n'agrège rien.
+  // Sélecteur : exercices déjà loggés (pas les 1324 du catalogue). Détail : courbes + tendance.
+  progressionExercises: () => request("/api/progression/exercises"),
+  progression: (exerciseId, period) =>
+    request("/api/progression/" + encodeURIComponent(exerciseId) + queryString({ period })),
+
   // Lecture d'une séance : hors-ligne, on synthétise les séries en attente dans la file (reprise
   // après reload sans réseau, et pas de re-log — évite les doublons faute d'unicité serveur).
   getSession: async (id) => {

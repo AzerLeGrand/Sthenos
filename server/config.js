@@ -36,6 +36,12 @@ const SCHEMA = {
     stall_sessions: "number",
     load_rounding_step: "number",
   },
+  progression_analytics: {
+    rolling_window: "number",
+    trend_flat_slope: "number",
+    trend_flat_pct: "number",
+    default_period: "string",
+  },
   user_defaults: {
     default_rir: "number",
     default_rep_min: "number",
