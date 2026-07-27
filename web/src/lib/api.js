@@ -178,6 +178,12 @@ export const api = {
   addBodyMetric: (metric_type, value, recorded_at) =>
     request("/api/body-metrics", { method: "POST", body: { metric_type, value, recorded_at } }),
 
+  // Analyse quotidienne (docs/health-integration.md §7). Lecture du résumé du jour (ou d'un jour
+  // donné, pour afficher « hier » si le cron n'a pas encore tourné) ; recalcul à la demande = bouton
+  // « Lancer l'analyse maintenant ». Les deux renvoient { date, generated_at, payload }.
+  dailySummary: (date) => request("/api/health/summary" + queryString({ date })),
+  runDailySummary: () => request("/api/health/summary/run", { method: "POST" }),
+
   // Jeton d'ingestion Apple Santé (Réglages). Les deux routes renvoient la même forme
   // { health_ingest_token, ingest_url } ; le jeton est null tant qu'aucun n'a été généré.
   healthToken: () => request("/api/settings/health-token"),

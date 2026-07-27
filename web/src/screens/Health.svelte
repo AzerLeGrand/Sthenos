@@ -22,6 +22,37 @@
   let data = null;
   let dataStatus = "idle"; // idle | loading | error | ready
 
+  // Analyse quotidienne (docs/health-integration.md §7). Le cron la produit chaque matin ; le bouton
+  // la recalcule à la demande. Chaque indicateur n'est affiché que s'il est présent dans le payload.
+  let summary = null; // { date, generated_at, payload } — payload null tant qu'aucune analyse
+  let summaryStatus = "loading"; // loading | error | ready
+  let running = false;
+
+  async function loadSummary() {
+    summaryStatus = "loading";
+    try {
+      summary = await api.dailySummary();
+      summaryStatus = "ready";
+    } catch {
+      summaryStatus = "error";
+    }
+  }
+
+  async function runSummary() {
+    running = true;
+    try {
+      summary = await api.runDailySummary();
+      summaryStatus = "ready";
+    } catch {
+      summaryStatus = "error";
+    } finally {
+      running = false;
+    }
+  }
+
+  // Payload courant (raccourci de lecture réactif). Référence `summary` directement (docs/frontend.md §6).
+  $: sum = summary && summary.payload ? summary.payload : null;
+
   // Formulaire de saisie manuelle du poids.
   let formDate = todayLocal();
   let formValue = "";
@@ -87,10 +118,93 @@
   // Unité affichée : celle renvoyée par le serveur (elle peut varier selon la source, ex. kJ/kcal).
   $: unit = data && data.unit ? data.unit : "";
 
-  onMount(loadList);
+  onMount(() => {
+    loadList();
+    loadSummary();
+  });
 </script>
 
 <h2 class="mb-4 text-xl font-semibold">Santé</h2>
+
+<!-- Analyse quotidienne (docs/health-integration.md §7). Chaque indicateur n'apparaît que s'il est
+     présent dans le payload : une métrique absente ce jour-là (montre non portée) est simplement
+     omise, jamais affichée comme « — » ou 0. Un sous-calcul sans historique suffisant (baseline,
+     tendance) reste présent mais annoncé indisponible. -->
+<section class="mb-5 rounded-lg border border-neutral-800 bg-neutral-900 p-3">
+  <div class="mb-2 flex items-baseline justify-between">
+    <h3 class="text-sm font-medium text-neutral-300">Analyse du jour</h3>
+    {#if sum}
+      <span class="text-xs text-neutral-600">{summary.date}</span>
+    {/if}
+  </div>
+
+  {#if summaryStatus === "loading"}
+    <p class="py-4 text-center text-sm text-neutral-500 animate-pulse">Chargement…</p>
+  {:else if summaryStatus === "error"}
+    <div class="flex flex-col items-center gap-2 py-4 text-center">
+      <p class="text-sm text-neutral-300">Analyse indisponible.</p>
+      <button
+        class="rounded-lg bg-neutral-800 px-3 py-1.5 text-sm font-medium text-neutral-100 active:bg-neutral-700"
+        on:click={loadSummary}
+      >
+        Réessayer
+      </button>
+    </div>
+  {:else if sum}
+    <dl class="space-y-1.5 text-sm">
+      {#if sum.sleep_hours !== undefined}
+        <div class="flex justify-between">
+          <dt class="text-neutral-400">Sommeil</dt>
+          <dd class="text-neutral-100">{frNum(sum.sleep_hours)} h</dd>
+        </div>
+      {/if}
+      {#if sum.resting_hr}
+        <div class="flex justify-between">
+          <dt class="text-neutral-400">FC de repos</dt>
+          <dd class="text-neutral-100">
+            {frNum(sum.resting_hr.value)} bpm
+            {#if sum.resting_hr.available}
+              <span class="text-neutral-500">
+                (ligne de base {frNum(sum.resting_hr.baseline)},
+                <span class={sum.resting_hr.delta > 0 ? "text-red-400" : sum.resting_hr.delta < 0 ? "text-green-400" : "text-neutral-500"}>
+                  {sum.resting_hr.delta > 0 ? "+" : ""}{frNum(sum.resting_hr.delta)}</span>)
+              </span>
+            {:else}
+              <span class="text-neutral-600">(ligne de base indisponible)</span>
+            {/if}
+          </dd>
+        </div>
+      {/if}
+      {#if sum.hrv_trend}
+        <div class="flex justify-between">
+          <dt class="text-neutral-400">Variabilité cardiaque</dt>
+          <dd class="text-neutral-100">
+            {#if sum.hrv_trend.available}
+              <span class={sum.hrv_trend.pct_change > 0 ? "text-green-400" : sum.hrv_trend.pct_change < 0 ? "text-red-400" : "text-neutral-500"}>
+                {sum.hrv_trend.pct_change > 0 ? "+" : ""}{frNum(sum.hrv_trend.pct_change)} %</span>
+              <span class="text-neutral-500">sur {sum.hrv_trend.window} j</span>
+            {:else}
+              <span class="text-neutral-600">tendance indisponible</span>
+            {/if}
+          </dd>
+        </div>
+      {/if}
+    </dl>
+    {#if !sum.sleep_hours && !sum.resting_hr && !sum.hrv_trend}
+      <p class="py-2 text-sm text-neutral-500">Aucune donnée Apple Santé pour ce jour.</p>
+    {/if}
+  {:else}
+    <p class="py-2 text-sm text-neutral-500">Pas encore d'analyse aujourd'hui.</p>
+  {/if}
+
+  <button
+    class="mt-3 w-full rounded-lg border border-neutral-700 px-4 py-2 text-sm font-medium text-neutral-200 active:bg-neutral-800 disabled:opacity-50"
+    on:click={runSummary}
+    disabled={running}
+  >
+    {running ? "Analyse en cours…" : "Lancer l'analyse maintenant"}
+  </button>
+</section>
 
 <!-- Saisie manuelle du poids : indépendante du chargement des courbes, donc hors de AsyncState.
      Sans balance connectée, Apple Santé ne fournit pas le poids (docs/health-integration.md §4). -->

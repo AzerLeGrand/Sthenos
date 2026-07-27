@@ -22,6 +22,8 @@ const { progressionRouter } = require("./routes/progression");
 const { bodyMetricsRouter } = require("./routes/body-metrics");
 const { settingsRouter } = require("./routes/settings");
 const { healthRouter } = require("./routes/health");
+const { healthSummaryRouter } = require("./routes/health-summary");
+const { startScheduler } = require("./services/scheduler");
 
 function main() {
   // 1. Configuration — échoue explicitement si une clé manque ou est invalide.
@@ -89,6 +91,10 @@ function main() {
     makeRequireAuth(db),
     settingsRouter(db, { baseUrl: config.server.base_url, ingestPath: config.health.ingest_path })
   );
+  // Analyse quotidienne : lecture et recalcul à la demande, protégés par requireAuth (session).
+  // Distinct de l'ingestion ci-dessous : même préfixe /api/health mais auth différente, chemins
+  // disjoints (/summary vs ingest_path). Section health injectée (fenêtres de baseline/tendance).
+  app.use("/api/health/summary", makeRequireAuth(db), healthSummaryRouter(db, config.health));
   // Ingestion Apple Santé : SECOND mécanisme d'auth (jeton Bearer statique), jamais requireAuth.
   // Le chemin vient de config.yml (health.ingest_path) ; il doit rester sous /api pour bénéficier
   // du 404 JSON et du proxy nginx.
@@ -126,6 +132,10 @@ function main() {
       if (err) res.status(404).send("Front non buildé : lancer `npm run build` dans web/.");
     });
   });
+
+  // Analyse quotidienne planifiée (cron matinal). Même process, démarrée après la base et les
+  // migrations. Le bouton « Lancer l'analyse maintenant » couvre le rattrapage manuel.
+  startScheduler(db, config);
 
   // 5. Écoute.
   const server = app.listen(config.server.port, config.server.host, () => {

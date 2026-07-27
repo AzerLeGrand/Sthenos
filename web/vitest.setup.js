@@ -8,3 +8,16 @@ import { webcrypto } from "node:crypto";
 if (!globalThis.crypto || typeof globalThis.crypto.randomUUID !== "function") {
   globalThis.crypto = webcrypto;
 }
+
+// - jsdom n'implémente pas matchMedia ; uPlot (via LineChart) l'appelle à l'import pour le pixel
+//   ratio. Stub minimal « pas de correspondance » : suffit pour monter un écran qui contient un
+//   graphe sans le rendre réellement.
+if (typeof globalThis.matchMedia !== "function") {
+  globalThis.matchMedia = () => ({
+    matches: false,
+    addEventListener() {},
+    removeEventListener() {},
+    addListener() {},
+    removeListener() {},
+  });
+}

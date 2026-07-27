@@ -28,8 +28,12 @@ auth:
 health:
   ingest_path: "/api/health/ingest"   # chemin de l'endpoint d'ingestion Apple Santé
   analysis_start: "08:00"             # début de la fenêtre horaire de l'analyse matinale
-  analysis_end: "10:00"               # fin de la fenêtre horaire de l'analyse matinale
+  analysis_end: "10:00"               # fin de la fenêtre horaire de l'analyse matinale (documentaire :
+                                      # pas de rattrapage auto, cf docs/health-integration.md §6-7)
   timezone: "Europe/Paris"            # fuseau de référence pour le cron et le découpage des journées
+  baseline_days: 7                    # jours précédents pour la ligne de base FC repos (analyse quotidienne)
+  hrv_trend_window: 7                 # fenêtre (jours) de la tendance VFC — clé dédiée, pas
+                                      # progression_analytics.rolling_window (séances vs jours)
 
 progression:                          # seuils globaux de l'algorithme (non personnalisables par utilisateur)
   easy_delta: 2                       # écart de RIR au-dessus de la cible = charge trop légère

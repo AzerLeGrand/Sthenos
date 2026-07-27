@@ -31,6 +31,10 @@ const SCHEMA = {
     analysis_start: "string",
     analysis_end: "string",
     timezone: "string",
+    baseline_days: "number", // jours précédents pour la ligne de base FC repos (analyse quotidienne)
+    hrv_trend_window: "number", // fenêtre de rollingPctChange sur la VFC — clé DÉDIÉE, pas
+    // progression_analytics.rolling_window : ce dernier compte des SÉANCES, ici on compte des JOURS ;
+    // coupler les deux ferait qu'un réglage de la progression déréglerait la santé. Domaines distincts.
   },
   progression: {
     easy_delta: "number",

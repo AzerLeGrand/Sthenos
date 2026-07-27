@@ -226,6 +226,21 @@
                 une journée manque, déclenche l'export à la main depuis le widget « sync » de Health
                 Auto Export, iPhone déverrouillé. Aucune app web ne peut le faire à ta place.
               </p>
+              <p>
+                <strong>Raccourci « un seul bouton ».</strong> Pour tout faire d'un tap, crée un
+                Raccourci iOS (app <em>Raccourcis</em>) qui enchaîne deux actions :
+              </p>
+              <ol class="list-decimal space-y-1 pl-4">
+                <li>
+                  <em>Exécuter l'automatisation</em> de sync Health Auto Export (pousse les données
+                  du jour vers le serveur). C'est l'étape qui exige l'iPhone déverrouillé.
+                </li>
+                <li>
+                  Une fois posé sur l'écran d'accueil, ce Raccourci force la synchro à la demande ;
+                  l'analyse se recalcule ensuite au prochain matin, ou immédiatement via le bouton
+                  « Lancer l'analyse maintenant » de l'onglet Santé.
+                </li>
+              </ol>
             </div>
           </details>
         {/if}
